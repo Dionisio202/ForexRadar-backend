@@ -52,6 +52,7 @@ class TableData(APIView):
             # Configuración del navegador
             options = webdriver.ChromeOptions()
             options.add_argument("--start-maximized")  # Maximizar la ventana del navegador
+            options.add_argument("--headless") 
             driver = webdriver.Chrome(options=options)
 
             # Abrir la página de Yahoo Finance
