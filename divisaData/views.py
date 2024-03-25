@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from datetime import datetime
+import datetime
 class DivisaAPIView(APIView):
     def get(self, request, format=None):
         url = 'https://es.investing.com/currencies/eur-usd-historical-data'
@@ -26,60 +26,85 @@ class DivisaAPIView(APIView):
         else:
             return Response({'error': 'No se pudo obtener la página'}, status=response.status_code)
 
-
 class TableData(APIView):
     def get(self, request, format=None):
         try:
-            # URL base de la página con los datos históricos de la divisa
-            base_url = 'https://au.finance.yahoo.com/quote/EURUSD%3DX/history'
-
-            # Obtener los parámetros del período y la frecuencia de la solicitud GET
-            period1 = request.query_params.get('period1')
-            period2 = request.query_params.get('period2')
+            # Obtener los parámetros del par de divisas y las fechas
+            currency_pair = request.query_params.get('divisas')
+            start_date_str = request.query_params.get('period1')
+            end_date_str = request.query_params.get('period2')
             frequency = request.query_params.get('frequency')
 
+            # Convertir las fechas a objetos de fecha
+            start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d')
+
+            # Convertir las fechas a formato Unix
+            start_unix = int(start_date.timestamp())
+            end_unix = int(end_date.timestamp())
+
+            # URL base de la página con los datos históricos de la divisa
+            base_url = f'https://au.finance.yahoo.com/quote/{currency_pair}/history'
+
             # Construir la URL con los parámetros proporcionados
-            url = f'{base_url}?period1={period1}&period2={period2}&interval={frequency}&filter=history&frequency={frequency}&includeAdjustedClose=true'
+            url = f'{base_url}?period1={start_unix}&period2={end_unix}&interval={frequency}&filter=history&frequency={frequency}&includeAdjustedClose=true'
 
-            # Encabezados con el agente de usuario
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-            }
+            # Configuración del navegador
+            options = webdriver.ChromeOptions()
+            options.add_argument("--start-maximized")  # Maximizar la ventana del navegador
+            driver = webdriver.Chrome(options=options)
 
-            # Realizar la solicitud GET a la URL con los encabezados
-            response = requests.get(url, headers=headers)
+            # Abrir la página de Yahoo Finance
+            driver.get(url)
+            time.sleep(3)
 
-            # Verificar si la solicitud fue exitosa (código de estado 200)
-            if response.status_code == 200:
-                # Crear objeto BeautifulSoup para analizar el HTML
-                time.sleep(random.uniform(2, 3))
-                soup = BeautifulSoup(response.text, 'html.parser')
+            # Hacer scroll hasta el final de la página
+            iter = 1
+            while True:
+                scroll_height = driver.execute_script("return document.documentElement.scrollHeight")
+                height = 250 * iter
+                driver.execute_script("window.scrollTo(0, " + str(height) + ");")
+                if height > scroll_height + 700:
+                    print('End of page')
+                    break
 
-                # Encontrar la tabla de datos históricos
-                table = soup.find('table', {'class': 'W(100%) M(0)'})
+                iter += 1
 
-                # Verificar si se encontró la tabla
-                if table:
-                    # Encontrar todas las filas de la tabla
-                    rows = table.find_all('tr')
+            # En este punto, toda la información dinámica debe haberse cargado
+            # Puedes agregar aquí el código para extraer los datos que necesitas
 
-                    # Lista para almacenar los datos extraídos
-                    data = []
+            # Crear objeto BeautifulSoup para analizar el HTML
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-                    # Iterar sobre las filas para extraer los datos
-                    for row in rows:
-                        # Encontrar todas las celdas de la fila
-                        cells = row.find_all('td')
-                        # Extraer el texto de las celdas y agregarlo a la lista de datos
-                        row_data = [cell.get_text(strip=True) for cell in cells]
+            # Encontrar la tabla de datos históricos
+            table = soup.find('table', {'class': 'W(100%) M(0)'})
+
+            # Verificar si se encontró la tabla
+            if table:
+                # Encontrar todas las filas de la tabla
+                rows = table.find_all('tr')
+
+                # Lista para almacenar los datos extraídos
+                data = []
+
+                # Iterar sobre las filas para extraer los datos
+                for row in rows:
+                    # Encontrar todas las celdas de la fila
+                    cells = row.find_all('td')
+                    # Extraer el texto de las celdas y agregarlo a la lista de datos
+                    row_data = [cell.get_text(strip=True) for cell in cells]
+                    # Verificar si la fila contiene datos válidos (no está vacía y no es la fila no deseada)
+                    if len(row_data) > 1:
                         data.append(row_data)
 
-                    # Retornar los datos extraídos como respuesta
-                    return Response(data)
-                else:
-                    return Response({'error': 'No se encontró la tabla de datos históricos'}, status=500)
+
+                # Retornar los datos extraídos como respuesta
+                return Response(data)
             else:
-                return Response({'error': 'No se pudo obtener la página'}, status=response.status_code)
+                return Response({'error': 'No se encontró la tabla de datos históricos'}, status=500)
         except Exception as e:
             # Manejar cualquier error y retornar una respuesta de error
             return Response({'error': str(e)}, status=500)
+        finally:
+            # Cerrar el navegador
+            driver.quit()
