@@ -10,21 +10,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import datetime
-class DivisaAPIView(APIView):
-    def get(self, request, format=None):
-        url = 'https://es.investing.com/currencies/eur-usd-historical-data'
-        response = requests.get(url)
-        time.sleep(random.uniform(2, 3))
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            div_valor = soup.find('div', {'class': 'text-5xl/9 font-bold text-[#232526] md:text-[42px] md:leading-[60px]', 'data-test': 'instrument-price-last'})
-            if div_valor:
-                valor = div_valor.text.strip()
-                return Response({'valor_divisa': valor})
-            else:
-                return Response({'error': 'No se encontró el valor de la divisa'}, status=500)
-        else:
-            return Response({'error': 'No se pudo obtener la página'}, status=response.status_code)
 
 class TableData(APIView):
     def get(self, request, format=None):
@@ -109,3 +94,34 @@ class TableData(APIView):
         finally:
             # Cerrar el navegador
             driver.quit()
+            
+class DivisaAPIViews(APIView):
+    def get(self, request):
+        try:
+            # URL de la página
+            url = "https://au.finance.yahoo.com/quote/AUDUSD%3DX"
+
+            # Hacer la solicitud GET a la URL
+            response = requests.get(url)
+            if response.status_code == 200:
+                tiempo_espera = random.uniform(8, 11)
+                time.sleep(tiempo_espera)
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Encontrar el elemento que contiene el valor de la divisa
+                divisa_element = soup.find('fin-streamer', {'data-symbol': 'AUDUSD=X'})
+
+                # Extraer el valor del atributo "value"
+                if divisa_element:
+                    valor = divisa_element['value']
+                    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                    # Guardar el valor en la base de datos o en algún otro lugar
+                    # Aquí podrías guardar el valor en tu base de datos si es necesario
+
+                    return Response({"timestamp": timestamp, "valor": valor})
+                else:
+                    return Response({"message": "No se pudo encontrar el valor de la divisa"}, status=404)
+            else:
+                return Response({"message": "No se pudo acceder a la página"}, status=response.status_code)
+        except Exception as e:
+            return Response({"message": str(e)}, status=500)
