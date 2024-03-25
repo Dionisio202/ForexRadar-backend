@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
+from datetime import datetime
 class DivisaAPIView(APIView):
     def get(self, request, format=None):
         url = 'https://es.investing.com/currencies/eur-usd-historical-data'
@@ -26,11 +26,20 @@ class DivisaAPIView(APIView):
         else:
             return Response({'error': 'No se pudo obtener la página'}, status=response.status_code)
 
+
 class TableData(APIView):
     def get(self, request, format=None):
         try:
-            # URL de la página con los datos históricos de la divisa
-            url = 'https://au.finance.yahoo.com/quote/EURUSD%3DX/history'
+            # URL base de la página con los datos históricos de la divisa
+            base_url = 'https://au.finance.yahoo.com/quote/EURUSD%3DX/history'
+
+            # Obtener los parámetros del período y la frecuencia de la solicitud GET
+            period1 = request.query_params.get('period1')
+            period2 = request.query_params.get('period2')
+            frequency = request.query_params.get('frequency')
+
+            # Construir la URL con los parámetros proporcionados
+            url = f'{base_url}?period1={period1}&period2={period2}&interval={frequency}&filter=history&frequency={frequency}&includeAdjustedClose=true'
 
             # Encabezados con el agente de usuario
             headers = {
@@ -43,6 +52,7 @@ class TableData(APIView):
             # Verificar si la solicitud fue exitosa (código de estado 200)
             if response.status_code == 200:
                 # Crear objeto BeautifulSoup para analizar el HTML
+                time.sleep(random.uniform(2, 3))
                 soup = BeautifulSoup(response.text, 'html.parser')
 
                 # Encontrar la tabla de datos históricos
