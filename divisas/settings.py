@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'divisaData',
     'rest_framework',
     'corsheaders',
+    'user',
 ]
 
 MIDDLEWARE = [

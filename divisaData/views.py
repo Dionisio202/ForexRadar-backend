@@ -170,29 +170,3 @@ class ForexDataView(APIView):
             return Response({"error": "Error al obtener los datos"}, status=response.status_code)
 
 
-class SupabaseAuthView(APIView):
-    def get(self, request):
-        # Obtener datos de la solicitud
-        email = request.query_params.get('email')
-        password = request.query_params.get('password')
-
-        if not email or not password:
-            return Response({'error': 'Debes proporcionar un correo electrónico y una contraseña'}, status=400)
-
-        # Configurar el cliente Supabase
-        supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
-        supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
-        client = create_client(supabase_url, supabase_key)
-
-        # Autenticar el usuario
-        auth_response = client.auth.sign_up(email, password)
-
-        # Verificar el resultado de la autenticación
-        if 'status' in auth_response and auth_response['status'] == 200:
-            # Autenticación exitosa
-            # Aquí puedes devolver el token de acceso u otra información relevante
-            return Response({'token': auth_response['access_token']})
-        else:
-            # Autenticación fallida
-            # Devolver un mensaje de error
-            return Response({'error': auth_response.get('error', 'Error desconocido')}, status=400)
