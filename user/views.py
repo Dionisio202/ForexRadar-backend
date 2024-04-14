@@ -5,6 +5,7 @@ from supabase_py import create_client
 class Register(APIView):
     def post(self, request):
         # Obtener datos de la solicitud
+     try:
         email = request.query_params.get('email')
         password = request.query_params.get('password')
         name=request.query_params.get('name')
@@ -22,23 +23,22 @@ class Register(APIView):
         
         # Verificar el resultado de la autenticación
         if 'status_code' in auth_response and auth_response['status_code'] == 200:
+            user_id = auth_response.get('id')
             profile_data = {
-                    'user_id': auth_response.get('user', {}).get('id'),
+                    'user_id': user_id,
                     'name': name,
                     'last_name':lastName,
                 }
-            profile_response = client.table('profile').upsert(profile_data).execute();
-            if profile_response.get('error'):
-                    return Response({'error': 'Error al insertar información adicional del usuario'}, status=400)
-
+            profile_table = client.table('profile')
+            profile_response = profile_table.insert(profile_data).execute()
             # Autenticación exitosa
             # Aquí puedes devolver el token de acceso u otra información relevante
-            return Response({'Registrado con exito'})
-        else:
-            # Autenticación fallida
-            # Devolver un mensaje de error
-            return Response({'error': auth_response.get('error', auth_response)}, status=400)
-            
+            return Response({'Registrado con exito':auth_response})
+        elif 'status_code' in auth_response and auth_response['status_code'] == 429:
+            return Response({'Limite de registros excedidos'}, status=429)
+     except Exception as e:
+        # Manejar cualquier excepción que ocurra durante la autenticación
+            return Response({'error': str(e)}, status=500)
 
 class Login(APIView):
     def post(self, request):
@@ -70,3 +70,4 @@ class Login(APIView):
         except Exception as e:
             # Manejar cualquier excepción que ocurra durante la autenticación
             return Response({'error': auth_response}, status=500)
+

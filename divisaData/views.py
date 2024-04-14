@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import datetime
 from rest_framework import status 
 from supabase_py import create_client
+from .models import ForexData
 
 class TableData(APIView):
     def get(self, request, format=None):
@@ -170,3 +171,72 @@ class ForexDataView(APIView):
             return Response({"error": "Error al obtener los datos"}, status=response.status_code)
 
 
+class ForexGETDataView(APIView):
+    def get(self, request):
+        symbol = request.query_params.get('divisas')
+
+        # Realizar la solicitud GET
+        function = 'TIME_SERIES_DAILY'
+        apikey = 'V01MN0FOTVCZ17D4'
+        start_date = '2024-01-01'
+        end_date = '2024-12-31'
+        url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&startdate={start_date}&enddate={end_date}'
+        response = requests.get(url)
+
+        # Procesar la respuesta
+        if response.status_code == 200:
+            data = response.json()
+            time_series = data.get('Time Series (Daily)', {})
+            
+            # Guardar los datos en la base de datos
+            for date_str, daily_data in time_series.items():
+                ForexData.objects.update_or_create(
+                    symbol=symbol,
+                    date=date_str,
+                    defaults={
+                        'open_price': float(daily_data['1. open']),
+                        'high_price': float(daily_data['2. high']),
+                        'low_price': float(daily_data['3. low']),
+                        'close_price': float(daily_data['4. close']),
+                        'volume': int(daily_data['5. volume'])
+                    }
+                )
+
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Error al obtener los datos"}, status=response.status_code)
+
+
+class ForexSendDataView(APIView):
+    def get(self, request):
+        symbol = request.query_params.get('divisas')
+
+        # Obtener datos de la base de datos
+        data = ForexData.objects.filter(symbol=symbol).order_by('date')
+
+        if not data.exists():
+            return Response({"error": "No se encontraron datos para el símbolo proporcionado"}, status=404)
+
+        # Crear la estructura del JSON de salida
+        output_data = {
+            "Meta Data": {
+                "1. Information": "Daily Prices (open, high, low, close) and Volumes",
+                "2. Symbol": symbol,
+                "3. Last Refreshed": data.last().date.strftime('%Y-%m-%d %H:%M:%S'),  # Última fecha de actualización
+                "4. Output Size": "Compact",
+                "5. Time Zone": "US/Eastern"
+            },
+            "Time Series (Daily)": {}
+        }
+
+        # Llenar los datos de series temporales en el JSON de salida
+        for entry in data:
+            output_data["Time Series (Daily)"][entry.date.strftime('%Y-%m-%d')] = {
+                "1. open": str(entry.open_price),
+                "2. high": str(entry.high_price),
+                "3. low": str(entry.low_price),
+                "4. close": str(entry.close_price),
+                "5. volume": str(entry.volume)
+            }
+
+        return Response(output_data, status=200)
