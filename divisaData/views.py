@@ -106,7 +106,7 @@ class DivisaAPIView(APIView):
 
             # Normalizar el formato del par de divisas
             normalized_currency_pair = currency_pair.replace("/", "")
-
+            time.sleep(random.randint(2, 4))
             # Construir la URL utilizando el nombre de la divisa normalizado
             url = f"https://au.finance.yahoo.com/quote/{normalized_currency_pair}%3DX"
 
@@ -128,15 +128,30 @@ class DivisaAPIView(APIView):
 
             # Encontrar el elemento que contiene el valor de la divisa
             divisa_element = soup.find('fin-streamer', {'data-symbol': f'{normalized_currency_pair}=X'})
-
-            # Extraer el valor del atributo "value"
+            divisa_element2=soup.find('fin-streamer', class_='Fw(500) Pstart(8px) Fz(24px)')
+            divisa_element3=soup.find('fin-streamer', {
+                'class': 'Fw(500) Pstart(8px) Fz(24px)',
+                'data-symbol': f'{normalized_currency_pair}=X',
+                'data-field': 'regularMarketChangePercent'
+            })
             if divisa_element:
                 valor = divisa_element['value']
+                valor = float(valor)
+                valor_formatted = round(valor, 4)
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-                # Guardar el valor en la base de datos o en algún otro lugar
-                # Aquí podrías guardar el valor en tu base de datos si es necesario
-
-                return Response({"timestamp": timestamp, "valor": valor})
+            if divisa_element2:
+                valor2=divisa_element2['value']
+                valor2=float(valor2)
+                valor2=round(valor2,4)
+            if divisa_element3:
+                valor3=divisa_element3['value']
+                valor3=float(valor3)*100
+                valor3=round(valor3,4)
+                if valor2<0:
+                    color='red'
+                else:
+                    color='green'
+                return Response({"timestamp": timestamp, "valor": valor_formatted,"cambio":valor2, "cambioPorcentaje":valor3 ,"color":color})
             else:
                 return Response({"message": "No se pudo encontrar el valor de la divisa"}, status=404)
         except Exception as e:
@@ -240,3 +255,164 @@ class ForexSendDataView(APIView):
             }
 
         return Response(output_data, status=200)
+    
+class DivisasInformation(APIView):
+    def get(self, request):
+        try:
+            # Configurar el cliente Supabase
+            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
+            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
+            client = create_client(supabase_url, supabase_key)
+
+            # Realizar consulta a la tabla "divisas"
+            table_name = 'divisas'
+            response = client.from_(table_name).select('*').execute()
+
+            # Verificar si la consulta fue exitosa
+            if response['status_code'] == 200:
+                # Obtener los datos de la respuesta
+                data = response['data']
+                return Response(data)
+            else:
+                # La consulta falló
+                return Response({'error': 'No se pudo obtener datos de la tabla "divisas"'}, status=500)
+
+        except Exception as e:
+            # Manejar cualquier excepción que ocurra durante la consulta
+            return Response({'error': str(e)}, status=500)
+        
+class InsertarDivisasUser(APIView):
+    def post(self, request):
+        try:
+            # Obtener datos de la solicitud POST
+            divisa_id = request.data.get('divisa_id')
+            user_profile_id = request.data.get('user_profile_id')
+
+            if not divisa_id or not user_profile_id:
+                return Response({'error': 'Se requiere divisa_id y user_profile_id para la inserción'}, status=400)
+
+            # Configurar el cliente Supabase
+            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
+            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
+            client = create_client(supabase_url, supabase_key)
+
+            # Realizar inserción en la tabla "user_divisas"
+            table_name = 'user_divisas'
+            response = client.from_(table_name).insert([{
+                'divisa_id': divisa_id,
+                'user_profile_id': user_profile_id
+            }]).execute()
+
+            # Verificar si la inserción fue exitosa
+            if response['status_code'] == 201:
+                # Obtener el ID de la nueva entrada insertada
+                inserted_id = response['data'][0]['id']
+
+                # Consultar los detalles de la divisa asociada al divisa_id
+                table_divisas = 'divisas'
+                divisa_response = client.from_(table_divisas).select('*').eq('id', divisa_id).single().execute()
+
+                if divisa_response['status_code'] == 200:
+                    # Obtener los datos de la divisa asociada
+                    divisa_data = divisa_response['data']
+                    return Response(divisa_data)
+                else:
+                    return Response({'error': response}, status=500)
+            else:
+                # La inserción falló
+                return Response({'error': response}, status=500)
+
+        except Exception as e:
+            # Manejar cualquier excepción que ocurra durante la inserción o consulta
+            return Response({'error': str(e)}, status=500)
+
+class DivisasOwn(APIView):
+    def get(self, request):
+        try:
+            # Configurar el cliente Supabase
+            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
+            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
+            client = create_client(supabase_url, supabase_key)
+            
+            user_id = request.query_params.get('user')
+            
+            # Realizar consulta a la tabla "user_divisas" filtrando por user_id
+            table_name = 'user_divisas'
+            response = client.from_(table_name).select('*').eq('user_profile_id', user_id).execute()
+
+            # Verificar si la consulta fue exitosa
+            if response['status_code'] == 200:
+                # Obtener los datos de la respuesta
+                data = response['data']
+                
+                # Extraer solo los valores de divisa_id como cadenas (strings)
+                divisa_ids = [str(item['divisa_id']) for item in data]
+                
+                # Inicializar una lista para almacenar todos los datos de las divisas
+                all_divisas_data = []
+                
+                # Iterar sobre cada divisa_id y obtener sus datos completos
+                for divisa_id in divisa_ids:
+                    # Realizar consulta para obtener los datos de la divisa con este divisa_id
+                    table_divisas = 'divisas'
+                    divisa_response = client.from_(table_divisas).select('*').eq('id', divisa_id).execute()
+                    
+                    # Verificar si la consulta fue exitosa y agregar los datos a la lista
+                    if divisa_response['status_code'] == 200:
+                        all_divisas_data.append(divisa_response['data'][0])  # Asumiendo que solo se espera un resultado
+                    else:
+                        # Manejar el error si la consulta de la divisa falló
+                        return Response({'error': f'No se pudo obtener datos de la divisa con ID {divisa_id}'}, status=500)
+                
+                # Devolver la lista de todos los datos de las divisas encontradas
+                return Response(all_divisas_data)
+            
+            else:
+                # La consulta inicial falló
+                return Response({'error': f'No se pudo obtener datos de la tabla "user_divisas" para el usuario {user_id}'}, status=500)
+
+        except Exception as e:
+            # Manejar cualquier excepción que ocurra durante la consulta
+            return Response({'error': str(e)}, status=500)
+
+
+class divisasDeleteInformation(APIView):
+    def delete_divisa(self, user_profile_id, divisa_id):
+        try:
+            # Configurar el cliente Supabase
+            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
+            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
+            client = create_client(supabase_url, supabase_key)
+
+            # Realizar la eliminación en la tabla "user_divisas"
+            table_name = 'user_divisas'
+            response = client.from_(table_name).delete().eq('user_profile_id', user_profile_id).eq('divisa_id', divisa_id).execute()
+
+            # Verificar si la eliminación fue exitosa
+            if 'status_code' in response and response['status_code'] == 200:
+                return True  # Indica que la eliminación fue exitosa
+            else:
+                return False  # Indica que la eliminación falló
+
+        except Exception as e:
+            # Manejar cualquier excepción que ocurra durante la eliminación
+            print(f'Error al eliminar divisa: {str(e)}')
+            return False
+
+    def get(self, request):
+        try:
+            user_profile_id = request.query_params.get('user')
+            divisa_id = request.query_params.get('divisa')
+
+            if not user_profile_id or not divisa_id:
+                return Response({'error': 'Se requiere user_profile_id y divisa_id para eliminar la divisa'}, status=400)
+
+            # Intentar eliminar la divisa
+            if self.delete_divisa(user_profile_id, divisa_id):
+                return Response({'message': 'Divisa eliminada exitosamente'}, status=200)
+            else:
+                return Response({'error': 'No se pudo eliminar la divisa'}, status=500)
+
+        except Exception as e:
+            # Manejar cualquier excepción que ocurra durante la solicitud
+            return Response({'error': str(e)}, status=500)

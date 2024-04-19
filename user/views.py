@@ -62,7 +62,7 @@ class Login(APIView):
             if 'status_code' in auth_response and auth_response['status_code'] == 200:
                 # Autenticación exitosa
                 # Aquí puedes devolver el token de acceso u otra información relevante
-                  return Response({'token': auth_response['access_token']})
+                  return Response({'token': auth_response['user']['id'] })
             else:
                 # Autenticación fallida
                 # Devolver un mensaje de error
