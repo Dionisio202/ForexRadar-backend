@@ -106,7 +106,9 @@ class DivisaAPIView(APIView):
 
             # Normalizar el formato del par de divisas
             normalized_currency_pair = currency_pair.replace("/", "")
-            time.sleep(random.randint(2, 4))
+            if(currency_pair==""):
+                return Response({"message": "No se ha proporcionado un par de divisas"}, status=200)
+            time.sleep(random.randint(4, 6))
             # Construir la URL utilizando el nombre de la divisa normalizado
             url = f"https://au.finance.yahoo.com/quote/{normalized_currency_pair}%3DX"
 
@@ -151,7 +153,7 @@ class DivisaAPIView(APIView):
                     color='red'
                 else:
                     color='green'
-                return Response({"timestamp": timestamp, "valor": valor_formatted,"cambio":valor2, "cambioPorcentaje":valor3 ,"color":color})
+                return Response({"timestamp": timestamp, "valor": valor_formatted,"cambio":valor2, "cambioPorcentaje":valor3 ,"color":color , "divisa": currency_pair})
             else:
                 return Response({"message": "No se pudo encontrar el valor de la divisa"}, status=404)
         except Exception as e:
@@ -170,10 +172,10 @@ class ForexDataView(APIView):
         # Especificar el rango de fechas para obtener solo datos del año 2024
         start_date = '2024-01-01'
         end_date = '2024-12-31'
-        #outputsize = 'full'  # Esto especifica que queremos obtener todos los datos disponibles
+        outputsize = 'full'  # Esto especifica que queremos obtener todos los datos disponibles
 
         # Construir la URL de la solicitud con el rango de fechas
-        url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&startdate={start_date}&enddate={end_date}'
+        url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&startdate={start_date}&enddate={end_date}&outputsize={outputsize}'
 
         # Realizar la solicitud GET
         response = requests.get(url)
@@ -191,7 +193,7 @@ class ForexGETDataView(APIView):
         symbol = request.query_params.get('divisas')
 
         # Realizar la solicitud GET
-        function = 'TIME_SERIES_DAILY'
+        function = 'TIME_SERIES_WEEKLY'
         apikey = 'V01MN0FOTVCZ17D4'
         start_date = '2024-01-01'
         end_date = '2024-12-31'
@@ -201,8 +203,21 @@ class ForexGETDataView(APIView):
         # Procesar la respuesta
         if response.status_code == 200:
             data = response.json()
-            time_series = data.get('Time Series (Daily)', {})
             
+            
+            # Determinar la frecuencia según la función utilizada
+            if function == 'TIME_SERIES_DAILY':
+                frequency = 'D'
+                time_series_key = 'Time Series (Daily)'
+            elif function == 'TIME_SERIES_WEEKLY':
+                frequency = 'W'
+                time_series_key = 'Weekly Time Series'
+            elif function == 'TIME_SERIES_MONTHLY':
+                frequency = 'M'
+                time_series_key = 'Monthly Time Series'
+            else:
+                frequency = 'D'  # Frecuencia predeterminada
+            time_series = data.get(time_series_key, {})
             # Guardar los datos en la base de datos
             for date_str, daily_data in time_series.items():
                 ForexData.objects.update_or_create(
@@ -213,7 +228,8 @@ class ForexGETDataView(APIView):
                         'high_price': float(daily_data['2. high']),
                         'low_price': float(daily_data['3. low']),
                         'close_price': float(daily_data['4. close']),
-                        'volume': int(daily_data['5. volume'])
+                        'volume': int(daily_data['5. volume']),
+                        'frequency': frequency,  # Asignar la frecuencia determinada
                     }
                 )
 
@@ -225,28 +241,34 @@ class ForexGETDataView(APIView):
 class ForexSendDataView(APIView):
     def get(self, request):
         symbol = request.query_params.get('divisas')
+        frequency = request.query_params.get('frequency', 'D')  # Obtener frecuencia de los query parameters
 
-        # Obtener datos de la base de datos
-        data = ForexData.objects.filter(symbol=symbol).order_by('date')
+        # Validar la frecuencia permitida
+        allowed_frequencies = ['D', 'W', 'M']
+        if frequency not in allowed_frequencies:
+            return Response({"error": "Frecuencia no válida"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Obtener datos de la base de datos filtrados por símbolo y frecuencia, ordenados por fecha
+        data = ForexData.objects.filter(symbol=symbol, frequency=frequency).order_by('date')
 
         if not data.exists():
-            return Response({"error": "No se encontraron datos para el símbolo proporcionado"}, status=404)
+            return Response({"error": "No se encontraron datos para el símbolo y frecuencia proporcionados"}, status=status.HTTP_404_NOT_FOUND)
 
         # Crear la estructura del JSON de salida
         output_data = {
             "Meta Data": {
-                "1. Information": "Daily Prices (open, high, low, close) and Volumes",
+                "1. Information": f"{frequency.capitalize()} Prices (open, high, low, close) and Volumes",
                 "2. Symbol": symbol,
                 "3. Last Refreshed": data.last().date.strftime('%Y-%m-%d %H:%M:%S'),  # Última fecha de actualización
                 "4. Output Size": "Compact",
                 "5. Time Zone": "US/Eastern"
             },
-            "Time Series (Daily)": {}
+            f"Time Series ({frequency.capitalize()})": {}
         }
 
         # Llenar los datos de series temporales en el JSON de salida
         for entry in data:
-            output_data["Time Series (Daily)"][entry.date.strftime('%Y-%m-%d')] = {
+            output_data[f"Time Series ({frequency.capitalize()})"][entry.date.strftime('%Y-%m-%d')] = {
                 "1. open": str(entry.open_price),
                 "2. high": str(entry.high_price),
                 "3. low": str(entry.low_price),
@@ -254,7 +276,7 @@ class ForexSendDataView(APIView):
                 "5. volume": str(entry.volume)
             }
 
-        return Response(output_data, status=200)
+        return Response(output_data, status=status.HTTP_200_OK)
     
 class DivisasInformation(APIView):
     def get(self, request):
@@ -411,8 +433,99 @@ class divisasDeleteInformation(APIView):
             if self.delete_divisa(user_profile_id, divisa_id):
                 return Response({'message': 'Divisa eliminada exitosamente'}, status=200)
             else:
-                return Response({'error': 'No se pudo eliminar la divisa'}, status=500)
+                return Response({'message': 'Divisa eliminada exitosamente'}, status=200)
 
         except Exception as e:
             # Manejar cualquier excepción que ocurra durante la solicitud
             return Response({'error': str(e)}, status=500)
+
+##Test 
+class ForexGETDataSelectView(APIView):
+    def get(self, request):
+        symbol = request.query_params.get('divisas')
+        frequency = request.query_params.get('frequency', 'D')  # Obtener frecuencia de los query parameters
+        start_date = request.query_params.get('start_date', '2020-01-01')
+        end_date = request.query_params.get('end_date', '2024-04-19')
+        # Validar la frecuencia permitida
+        allowed_frequencies = ['D', 'W', 'M']
+        if frequency not in allowed_frequencies:
+            return Response({"error": "Frecuencia no válida"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Obtener datos de la base de datos filtrados por símbolo y frecuencia, ordenados por fecha
+        data = ForexData.objects.filter(symbol=symbol, frequency=frequency).order_by('date')
+
+        if not data.exists():
+            # Si no se encuentran datos en la base de datos, obtener datos de la API y almacenarlos
+            if frequency == 'D':
+                    time_series_Api = 'Daily'
+            elif frequency == 'W':
+                    time_series_Api = 'Weekly'
+            elif frequency == 'M':
+                    time_series_Api = 'Monthly'
+            else:
+                    time_series_Api = None
+            function = f'TIME_SERIES_{time_series_Api.upper()}'
+            apikey = 'V01MN0FOTVCZ17D4'
+            outputsize = 'full'
+            url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&outputsize={outputsize}'
+            response = requests.get(url)
+
+            # Procesar la respuesta de la API
+            if response.status_code == 200:
+                api_data = response.json()
+
+                # Determinar la clave de la serie temporal según la frecuencia utilizada
+                if frequency == 'D':
+                    time_series_key = 'Time Series (Daily)'
+                elif frequency == 'W':
+                    time_series_key = 'Weekly Time Series'
+                elif frequency == 'M':
+                    time_series_key = 'Monthly Time Series'
+                else:
+                    time_series_key = None
+
+                if time_series_key:
+                    time_series = api_data.get(time_series_key, {})
+
+                    # Guardar los datos en la base de datos
+                    for date_str, daily_data in time_series.items():
+                        ForexData.objects.update_or_create(
+                            symbol=symbol,
+                            date=date_str,
+                            defaults={
+                                'open_price': float(daily_data['1. open']),
+                                'high_price': float(daily_data['2. high']),
+                                'low_price': float(daily_data['3. low']),
+                                'close_price': float(daily_data['4. close']),
+                                'volume': int(daily_data['5. volume']),
+                                'frequency': frequency,  # Asignar la frecuencia determinada
+                            }
+                        )
+
+                    # Después de almacenar los datos, volver a recuperarlos de la base de datos
+        data = ForexData.objects.filter(symbol=symbol, frequency=frequency,date__range=(start_date, end_date)).order_by('date')
+        if not data.exists():
+            return Response({"error": "No se encontraron datos para el símbolo y frecuencia proporcionados"}, status=status.HTTP_404_NOT_FOUND)
+        # Crear la estructura del JSON de salida
+        output_data = {
+            "Meta Data": {
+                "1. Information": f"{frequency.capitalize()} Prices (open, high, low, close) and Volumes",
+                "2. Symbol": symbol,
+                "3. Last Refreshed": data.last().date.strftime('%Y-%m-%d %H:%M:%S'),  # Última fecha de actualización
+                "4. Output Size": "Compact",
+                "5. Time Zone": "US/Eastern"
+            },
+            "Time Series": {}
+        }
+
+        # Llenar los datos de series temporales en el JSON de salida
+        for entry in data:
+            output_data["Time Series"][entry.date.strftime('%Y-%m-%d')] = {
+                "1. open": str(entry.open_price),
+                "2. high": str(entry.high_price),
+                "3. low": str(entry.low_price),
+                "4. close": str(entry.close_price),
+                "5. volume": str(entry.volume)
+            }
+
+        return Response(output_data, status=status.HTTP_200_OK)
