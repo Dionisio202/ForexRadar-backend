@@ -11,8 +11,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import datetime
 from rest_framework import status 
-from supabase_py import create_client
-from .models import ForexData
+from supabase import create_client
+from .models import Divisa, ForexData, UserDivisa
+from django.contrib.auth.models import User
 
 class TableData(APIView):
     def get(self, request, format=None):
@@ -101,34 +102,26 @@ class TableData(APIView):
 class DivisaAPIView(APIView):
     def get(self, request):
         try:
-            # Obtener el parámetro 'divisas' de la solicitud GET
             currency_pair = request.query_params.get('divisas')
 
-            # Normalizar el formato del par de divisas
             normalized_currency_pair = currency_pair.replace("/", "")
             if(currency_pair==""):
                 return Response({"message": "No se ha proporcionado un par de divisas"}, status=200)
             time.sleep(random.randint(4, 6))
-            # Construir la URL utilizando el nombre de la divisa normalizado
             url = f"https://au.finance.yahoo.com/quote/{normalized_currency_pair}%3DX"
 
-            # Configuración del navegador
             options = webdriver.ChromeOptions()
-            options.add_argument("--start-maximized")  # Maximizar la ventana del navegador
+            options.add_argument("--start-maximized") 
             options.add_argument("--headless") 
             driver = webdriver.Chrome(options=options)
 
-            # Hacer la solicitud GET a la URL
             driver.get(url)
             #time.sleep(3)  
 
-            # Obtener el HTML de la página
             html = driver.page_source
 
-            # Crear objeto BeautifulSoup para analizar el HTML
             soup = BeautifulSoup(html, 'html.parser')
 
-            # Encontrar el elemento que contiene el valor de la divisa
             divisa_element = soup.find('fin-streamer', {'data-symbol': f'{normalized_currency_pair}=X'})
             divisa_element2=soup.find('fin-streamer', class_='Fw(500) Pstart(8px) Fz(24px)')
             divisa_element3=soup.find('fin-streamer', {
@@ -159,28 +152,22 @@ class DivisaAPIView(APIView):
         except Exception as e:
             return Response({"message": str(e)}, status=500)
         finally:
-            # Cerrar el navegador
             driver.quit()
 
 class ForexDataView(APIView):
     def get(self, request):
-        # Parámetros de la solicitud
         symbol = request.query_params.get('divisas')
-        function = 'TIME_SERIES_DAILY'  # Función para obtener datos diarios
-        apikey = 'V01MN0FOTVCZ17D4'  # Reemplaza 'TU_CLAVE_API' con tu clave API de Alpha Vantage
+        function = 'TIME_SERIES_DAILY'  
+        apikey = 'V01MN0FOTVCZ17D4'  
         
-        # Especificar el rango de fechas para obtener solo datos del año 2024
         start_date = '2024-01-01'
         end_date = '2024-12-31'
-        outputsize = 'full'  # Esto especifica que queremos obtener todos los datos disponibles
+        outputsize = 'full' 
 
-        # Construir la URL de la solicitud con el rango de fechas
         url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&startdate={start_date}&enddate={end_date}&outputsize={outputsize}'
 
-        # Realizar la solicitud GET
         response = requests.get(url)
 
-        # Procesar la respuesta
         if response.status_code == 200:
             data = response.json()
             return Response(data, status=status.HTTP_200_OK)
@@ -192,7 +179,6 @@ class ForexGETDataView(APIView):
     def get(self, request):
         symbol = request.query_params.get('divisas')
 
-        # Realizar la solicitud GET
         function = 'TIME_SERIES_WEEKLY'
         apikey = 'V01MN0FOTVCZ17D4'
         start_date = '2024-01-01'
@@ -200,12 +186,10 @@ class ForexGETDataView(APIView):
         url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&startdate={start_date}&enddate={end_date}'
         response = requests.get(url)
 
-        # Procesar la respuesta
         if response.status_code == 200:
             data = response.json()
             
             
-            # Determinar la frecuencia según la función utilizada
             if function == 'TIME_SERIES_DAILY':
                 frequency = 'D'
                 time_series_key = 'Time Series (Daily)'
@@ -216,9 +200,8 @@ class ForexGETDataView(APIView):
                 frequency = 'M'
                 time_series_key = 'Monthly Time Series'
             else:
-                frequency = 'D'  # Frecuencia predeterminada
+                frequency = 'D' 
             time_series = data.get(time_series_key, {})
-            # Guardar los datos en la base de datos
             for date_str, daily_data in time_series.items():
                 ForexData.objects.update_or_create(
                     symbol=symbol,
@@ -229,7 +212,7 @@ class ForexGETDataView(APIView):
                         'low_price': float(daily_data['3. low']),
                         'close_price': float(daily_data['4. close']),
                         'volume': int(daily_data['5. volume']),
-                        'frequency': frequency,  # Asignar la frecuencia determinada
+                        'frequency': frequency,  
                     }
                 )
 
@@ -243,18 +226,15 @@ class ForexSendDataView(APIView):
         symbol = request.query_params.get('divisas')
         frequency = request.query_params.get('frequency', 'D')  # Obtener frecuencia de los query parameters
 
-        # Validar la frecuencia permitida
         allowed_frequencies = ['D', 'W', 'M']
         if frequency not in allowed_frequencies:
             return Response({"error": "Frecuencia no válida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Obtener datos de la base de datos filtrados por símbolo y frecuencia, ordenados por fecha
         data = ForexData.objects.filter(symbol=symbol, frequency=frequency).order_by('date')
 
         if not data.exists():
             return Response({"error": "No se encontraron datos para el símbolo y frecuencia proporcionados"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Crear la estructura del JSON de salida
         output_data = {
             "Meta Data": {
                 "1. Information": f"{frequency.capitalize()} Prices (open, high, low, close) and Volumes",
@@ -266,7 +246,6 @@ class ForexSendDataView(APIView):
             f"Time Series ({frequency.capitalize()})": {}
         }
 
-        # Llenar los datos de series temporales en el JSON de salida
         for entry in data:
             output_data[f"Time Series ({frequency.capitalize()})"][entry.date.strftime('%Y-%m-%d')] = {
                 "1. open": str(entry.open_price),
@@ -281,181 +260,111 @@ class ForexSendDataView(APIView):
 class DivisasInformation(APIView):
     def get(self, request):
         try:
-            # Configurar el cliente Supabase
-            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
-            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
-            client = create_client(supabase_url, supabase_key)
-
-            # Realizar consulta a la tabla "divisas"
-            table_name = 'divisas'
-            response = client.from_(table_name).select('*').execute()
-
-            # Verificar si la consulta fue exitosa
-            if response['status_code'] == 200:
-                # Obtener los datos de la respuesta
-                data = response['data']
-                return Response(data)
-            else:
-                # La consulta falló
-                return Response({'error': 'No se pudo obtener datos de la tabla "divisas"'}, status=500)
-
+            divisas = Divisa.objects.all()
+            data = [
+                {
+                    'id': divisa.id,
+                    'nombre': divisa.nombre,
+                    'imagen1': divisa.imagen1,
+                    'imagen2': divisa.imagen2
+                }
+                for divisa in divisas
+            ]
+            return Response(data)
         except Exception as e:
-            # Manejar cualquier excepción que ocurra durante la consulta
             return Response({'error': str(e)}, status=500)
+
+
         
 class InsertarDivisasUser(APIView):
     def post(self, request):
         try:
-            # Obtener datos de la solicitud POST
             divisa_id = request.data.get('divisa_id')
-            user_profile_id = request.data.get('user_profile_id')
+            user_id = request.data.get('user_profile_id')
 
-            if not divisa_id or not user_profile_id:
-                return Response({'error': 'Se requiere divisa_id y user_profile_id para la inserción'}, status=400)
+            if not divisa_id or not user_id:
+                return Response({'error': 'Se requiere divisa_id y user_profile_id'}, status=400)
 
-            # Configurar el cliente Supabase
-            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
-            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
-            client = create_client(supabase_url, supabase_key)
+            user = user.objects.filter(id=user_id).first()
+            divisa = Divisa.objects.filter(id=divisa_id).first()
 
-            # Realizar inserción en la tabla "user_divisas"
-            table_name = 'user_divisas'
-            response = client.from_(table_name).insert([{
-                'divisa_id': divisa_id,
-                'user_profile_id': user_profile_id
-            }]).execute()
+            if not user or not divisa:
+                return Response({'error': 'Usuario o divisa no encontrada'}, status=404)
 
-            # Verificar si la inserción fue exitosa
-            if response['status_code'] == 201:
-                # Obtener el ID de la nueva entrada insertada
-                inserted_id = response['data'][0]['id']
+            user_divisa, created = UserDivisa.objects.get_or_create(user=user, divisa=divisa)
 
-                # Consultar los detalles de la divisa asociada al divisa_id
-                table_divisas = 'divisas'
-                divisa_response = client.from_(table_divisas).select('*').eq('id', divisa_id).single().execute()
-
-                if divisa_response['status_code'] == 200:
-                    # Obtener los datos de la divisa asociada
-                    divisa_data = divisa_response['data']
-                    return Response(divisa_data)
-                else:
-                    return Response({'error': response}, status=500)
-            else:
-                # La inserción falló
-                return Response({'error': response}, status=500)
+            return Response({
+                'id': user_divisa.id,
+                'user_id': user.id,
+                'divisa_id': divisa.id,
+                'divisa_nombre': divisa.nombre,
+                'divisa_simbolo': divisa.simbolo
+            })
 
         except Exception as e:
-            # Manejar cualquier excepción que ocurra durante la inserción o consulta
             return Response({'error': str(e)}, status=500)
+
 
 class DivisasOwn(APIView):
     def get(self, request):
         try:
-            # Configurar el cliente Supabase
-            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
-            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
-            client = create_client(supabase_url, supabase_key)
-            
             user_id = request.query_params.get('user')
-            
-            # Realizar consulta a la tabla "user_divisas" filtrando por user_id
-            table_name = 'user_divisas'
-            response = client.from_(table_name).select('*').eq('user_profile_id', user_id).execute()
+            user_instance = User.objects.filter(id=user_id).first()
 
-            # Verificar si la consulta fue exitosa
-            if response['status_code'] == 200:
-                # Obtener los datos de la respuesta
-                data = response['data']
-                
-                # Extraer solo los valores de divisa_id como cadenas (strings)
-                divisa_ids = [str(item['divisa_id']) for item in data]
-                
-                # Inicializar una lista para almacenar todos los datos de las divisas
-                all_divisas_data = []
-                
-                # Iterar sobre cada divisa_id y obtener sus datos completos
-                for divisa_id in divisa_ids:
-                    # Realizar consulta para obtener los datos de la divisa con este divisa_id
-                    table_divisas = 'divisas'
-                    divisa_response = client.from_(table_divisas).select('*').eq('id', divisa_id).execute()
-                    
-                    # Verificar si la consulta fue exitosa y agregar los datos a la lista
-                    if divisa_response['status_code'] == 200:
-                        all_divisas_data.append(divisa_response['data'][0])  # Asumiendo que solo se espera un resultado
-                    else:
-                        # Manejar el error si la consulta de la divisa falló
-                        return Response({'error': f'No se pudo obtener datos de la divisa con ID {divisa_id}'}, status=500)
-                
-                # Devolver la lista de todos los datos de las divisas encontradas
-                return Response(all_divisas_data)
-            
-            else:
-                # La consulta inicial falló
-                return Response({'error': f'No se pudo obtener datos de la tabla "user_divisas" para el usuario {user_id}'}, status=500)
+            if not user_instance:
+                return Response({'error': 'Usuario no encontrado'}, status=404)
+
+            user_divisas = UserDivisa.objects.filter(user=user_instance)
+            data = [
+                {
+                    'id': ud.divisa.id,
+                    'nombre': ud.divisa.nombre,
+                    'simbolo': ud.divisa.simbolo,
+                    'imagen1': ud.divisa.imagen1,
+                    'imagen2': ud.divisa.imagen2
+                }
+                for ud in user_divisas
+            ]
+            return Response(data)
 
         except Exception as e:
-            # Manejar cualquier excepción que ocurra durante la consulta
             return Response({'error': str(e)}, status=500)
 
 
 class divisasDeleteInformation(APIView):
-    def delete_divisa(self, user_profile_id, divisa_id):
-        try:
-            # Configurar el cliente Supabase
-            supabase_url = 'https://dcvauwnbzpxhdgggpzsg.supabase.co'
-            supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdmF1d25ienB4aGRnZ2dwenNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcxMTg1OTUwNCwiZXhwIjoyMDI3NDM1NTA0fQ.AMi6GxQIuajsWeL_WQLSFFsXAfOufTwIpaN4gJxb8G4'
-            client = create_client(supabase_url, supabase_key)
-
-            # Realizar la eliminación en la tabla "user_divisas"
-            table_name = 'user_divisas'
-            response = client.from_(table_name).delete().eq('user_profile_id', user_profile_id).eq('divisa_id', divisa_id).execute()
-
-            # Verificar si la eliminación fue exitosa
-            if 'status_code' in response and response['status_code'] == 200:
-                return True  # Indica que la eliminación fue exitosa
-            else:
-                return False  # Indica que la eliminación falló
-
-        except Exception as e:
-            # Manejar cualquier excepción que ocurra durante la eliminación
-            print(f'Error al eliminar divisa: {str(e)}')
-            return False
-
     def get(self, request):
         try:
-            user_profile_id = request.query_params.get('user')
+            user_id = request.query_params.get('user')
             divisa_id = request.query_params.get('divisa')
 
-            if not user_profile_id or not divisa_id:
-                return Response({'error': 'Se requiere user_profile_id y divisa_id para eliminar la divisa'}, status=400)
+            if not user_id or not divisa_id:
+                return Response({'error': 'Se requiere user_id y divisa_id'}, status=400)
 
-            # Intentar eliminar la divisa
-            if self.delete_divisa(user_profile_id, divisa_id):
+            user_divisa = UserDivisa.objects.filter(user_id=user_id, divisa_id=divisa_id).first()
+
+            if user_divisa:
+                user_divisa.delete()
                 return Response({'message': 'Divisa eliminada exitosamente'}, status=200)
             else:
-                return Response({'message': 'Divisa eliminada exitosamente'}, status=200)
+                return Response({'error': 'No se encontró la relación para eliminar'}, status=404)
 
         except Exception as e:
-            # Manejar cualquier excepción que ocurra durante la solicitud
             return Response({'error': str(e)}, status=500)
 
 ##Test 
 class ForexGETDataSelectView(APIView):
     def get(self, request):
         symbol = request.query_params.get('divisas')
-        frequency = request.query_params.get('frequency', 'D')  # Obtener frecuencia de los query parameters
+        frequency = request.query_params.get('frequency', 'D')  
         start_date = request.query_params.get('start_date', '2020-01-01')
         end_date = request.query_params.get('end_date', '2024-04-19')
-        # Validar la frecuencia permitida
         allowed_frequencies = ['D', 'W', 'M']
         if frequency not in allowed_frequencies:
             return Response({"error": "Frecuencia no válida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Obtener datos de la base de datos filtrados por símbolo y frecuencia, ordenados por fecha
         data = ForexData.objects.filter(symbol=symbol, frequency=frequency).order_by('date')
 
         if not data.exists():
-            # Si no se encuentran datos en la base de datos, obtener datos de la API y almacenarlos
             if frequency == 'D':
                     time_series_Api = 'Daily'
             elif frequency == 'W':
@@ -470,11 +379,9 @@ class ForexGETDataSelectView(APIView):
             url = f'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={apikey}&datatype=json&outputsize={outputsize}'
             response = requests.get(url)
 
-            # Procesar la respuesta de la API
             if response.status_code == 200:
                 api_data = response.json()
 
-                # Determinar la clave de la serie temporal según la frecuencia utilizada
                 if frequency == 'D':
                     time_series_key = 'Time Series (Daily)'
                 elif frequency == 'W':
@@ -487,7 +394,6 @@ class ForexGETDataSelectView(APIView):
                 if time_series_key:
                     time_series = api_data.get(time_series_key, {})
 
-                    # Guardar los datos en la base de datos
                     for date_str, daily_data in time_series.items():
                         ForexData.objects.update_or_create(
                             symbol=symbol,
@@ -498,15 +404,13 @@ class ForexGETDataSelectView(APIView):
                                 'low_price': float(daily_data['3. low']),
                                 'close_price': float(daily_data['4. close']),
                                 'volume': int(daily_data['5. volume']),
-                                'frequency': frequency,  # Asignar la frecuencia determinada
+                                'frequency': frequency,  
                             }
                         )
 
-                    # Después de almacenar los datos, volver a recuperarlos de la base de datos
         data = ForexData.objects.filter(symbol=symbol, frequency=frequency,date__range=(start_date, end_date)).order_by('date')
         if not data.exists():
             return Response({"error": "No se encontraron datos para el símbolo y frecuencia proporcionados"}, status=status.HTTP_404_NOT_FOUND)
-        # Crear la estructura del JSON de salida
         output_data = {
             "Meta Data": {
                 "1. Information": f"{frequency.capitalize()} Prices (open, high, low, close) and Volumes",
@@ -518,7 +422,6 @@ class ForexGETDataSelectView(APIView):
             "Time Series": {}
         }
 
-        # Llenar los datos de series temporales en el JSON de salida
         for entry in data:
             output_data["Time Series"][entry.date.strftime('%Y-%m-%d')] = {
                 "1. open": str(entry.open_price),
