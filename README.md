@@ -7,57 +7,57 @@
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Selenium](https://img.shields.io/badge/Selenium-4.0-43B02A?style=for-the-badge&logo=selenium&logoColor=white)
 
-**API REST robusta para análisis de mercados Forex con scraping dinámico y datos históricos**
+**Robust REST API for Forex market analysis with dynamic scraping and historical data**
 
-[🚀 Demo](#-vista-previa) • [📖 Documentación](#-funcionalidades-principales) • [⚡ Instalación](#️-instalación-rápida) • [🔗 Frontend](https://github.com/Dionisio202/ForexRadar-frontEnd)
+[🚀 Demo](#-preview) • [📖 Documentation](#-main-features) • [⚡ Installation](#️-quick-installation) • [🔗 Frontend](https://github.com/Dionisio202/ForexRadar-frontEnd)
 
 </div>
 
 ---
 
-## 🎯 ¿Qué es ForexRadar?
+## 🎯 What is ForexRadar?
 
-**ForexRadar** es una potente aplicación backend desarrollada con **Django REST Framework** que combina scraping inteligente y APIs para proporcionar datos completos del mercado Forex. Diseñada para alimentar dashboards analíticos y aplicaciones de trading con información precisa y actualizada.
+**ForexRadar** is a powerful backend application built with **Django REST Framework** that combines intelligent scraping and APIs to provide comprehensive Forex market data. Designed to power analytical dashboards and trading applications with accurate and up-to-date information.
 
-### ✨ Características destacadas
+### ✨ Key Features
 
-- 🔄 **Datos en tiempo real** con precios actuales y variaciones
-- 📊 **Scraping inteligente** de Yahoo Finance con Selenium
-- 💾 **Base de datos histórica** desde 2005 hasta la actualidad
-- 🎛️ **Panel de administración** completo y personalizable
-- 👥 **Gestión de usuarios** con divisas favoritas
-- 📈 **Múltiples frecuencias** (diario, semanal, mensual)
+- 🔄 **Real-time data** with current prices and variations
+- 📊 **Intelligent scraping** from Yahoo Finance with Selenium
+- 💾 **Historical database** from 2005 to present
+- 🎛️ **Complete administration panel** fully customizable
+- 👥 **User management** with favorite currencies
+- 📈 **Multiple frequencies** (daily, weekly, monthly)
 
 ---
 
-## 🖼️ Vista previa
+## 🖼️ Preview
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎛️ Panel de Administración
-![Dashboard general](./docs/images/track6.png)
+### 🎛️ Administration Panel
+![General dashboard](./images/track6.png)
 
 </td>
 <td width="50%">
 
-### 🔍 Filtros Avanzados
-![Filtros de frecuencia y símbolo](./docs/images/track7.png)
+### 🔍 Advanced Filters
+![Frequency and symbol filters](./images/track7.png)
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### 📋 Resultados de Scraping
-![Scraping de Yahoo Finance](./docs/images/4767cf8d-c2b7-4e6e-a8eb-79b86c709e6c.png)
+### 📋 Scraping Results
+![Yahoo Finance scraping](./images/image.png)
 
 </td>
 <td width="50%">
 
-### 🌐 Yahoo Finance Base
-![Yahoo Finance ejemplo](./docs/images/51151a87-3543-4693-8f2a-d7f13dd8cc84.png)
+### 🌐 Yahoo Finance Data
+![Yahoo Finance data extraction example](./images/track8.png)
 
 </td>
 </tr>
@@ -65,26 +65,26 @@
 
 ---
 
-## 🚀 Funcionalidades principales
+## 🚀 Main Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 📊 **Datos del Mercado**
-- ✅ Precios en tiempo real
-- ✅ Datos históricos completos
-- ✅ Múltiples pares de divisas
-- ✅ Frecuencias personalizables
+### 📊 **Market Data**
+- ✅ Real-time prices
+- ✅ Complete historical data
+- ✅ Multiple currency pairs
+- ✅ Customizable frequencies
 
 </td>
 <td width="50%">
 
-### 🛠️ **Gestión y Admin**
-- ✅ Panel de administración Django
-- ✅ Filtros avanzados por símbolo/fecha
-- ✅ Gestión de usuarios autenticados
-- ✅ Configuración de divisas favoritas
+### 🛠️ **Management & Admin**
+- ✅ Django administration panel
+- ✅ Advanced filters by symbol/date
+- ✅ Authenticated user management
+- ✅ Favorite currencies configuration
 
 </td>
 </tr>
@@ -92,216 +92,214 @@
 
 ---
 
-## ⚙️ Stack Tecnológico
+## ⚙️ Technology Stack
 
 ### 🔧 Backend Core
 ```
-Django 4.2.22          # Framework web robusto
-Django REST Framework  # API REST potente
-SQLite3               # Base de datos (desarrollo)
+Django 4.2.22          # Robust web framework
+Django REST Framework  # Powerful REST API
+SQLite3               # Database (development)
 ```
 
 ### 🕷️ Scraping & APIs
 ```
-Selenium              # Automatización web
-BeautifulSoup         # Parsing HTML
-Alphavantage API      # Datos alternativos
+Selenium              # Web automation
+BeautifulSoup         # HTML parsing
+Alphavantage API      # Alternative data
 ```
 
-### 🎨 Frontend (Repositorio separado)
+### 🎨 Frontend (Separate repository)
 ```
-React                 # Interface de usuario
-ApexCharts           # Gráficos candlestick
+React                 # User interface
+ApexCharts           # Candlestick charts
 ```
 
 > 🔗 **Frontend Repository:** [ForexRadar-frontEnd](https://github.com/Dionisio202/ForexRadar-frontEnd)
 
 ---
 
-## 🗄️ Estructura de Datos
+## 🗄️ Data Structure
 
-### 📈 Modelo `ForexData`
+### 📈 `ForexData` Model
 ```python
 class ForexData(models.Model):
-    symbol      # Par de divisas (EURUSD, AUDUSD, etc.)
-    date        # Fecha del registro
-    open_price  # Precio de apertura
-    high_price  # Precio máximo
-    low_price   # Precio mínimo
-    close_price # Precio de cierre
-    volume      # Volumen negociado
-    frequency   # Frecuencia (D, W, M)
+    symbol      # Currency pair (EURUSD, AUDUSD, etc.)
+    date        # Record date
+    open_price  # Opening price
+    high_price  # Maximum price
+    low_price   # Minimum price
+    close_price # Closing price
+    volume      # Traded volume
+    frequency   # Frequency (D, W, M)
 ```
 
-### 💱 Modelo `Divisa`
+### 💱 `Divisa` Model
 ```python
 class Divisa(models.Model):
-    nombre      # Nombre descriptivo
-    simbolo     # Código de la divisa
-    imagen1     # URL imagen principal
-    imagen2     # URL imagen secundaria
+    nombre      # Descriptive name
+    simbolo     # Currency code
+    imagen1     # Main image URL
+    imagen2     # Secondary image URL
 ```
 
-### 👤 Modelo `UserDivisa`
+### 👤 `UserDivisa` Model
 ```python
-# Relación Usuario ↔ Divisas Favoritas
+# User ↔ Favorite Currencies Relationship
 class UserDivisa(models.Model):
-    user        # Usuario autenticado
-    divisa      # Divisa favorita
+    user        # Authenticated user
+    divisa      # Favorite currency
 ```
 
 ---
 
-## 🎯 Cobertura de Datos
+## 🎯 Data Coverage
 
 <div align="center">
 
-| 📊 **Métrica** | 📈 **Valor** |
+| 📊 **Metric** | 📈 **Value** |
 |:---:|:---:|
-| **Símbolos Disponibles** | `AUDCAD, AUDUSD, CHFUSD, EURGBP, EURUSD, GBPUSD, NZDJPY, USDCAD, USDJPY` |
-| **Rango Temporal** | `2005-02-21` hasta `2024-04-26` |
-| **Frecuencias** | `Diario (D)` • `Semanal (W)` • `Mensual (M)` |
-| **Total de Registros** | `190,000+` datos históricos |
+| **Available Symbols** | `AUDCAD, AUDUSD, CHFUSD, EURGBP, EURUSD, GBPUSD, NZDJPY, USDCAD, USDJPY` |
+| **Time Range** | `2005-02-21` to `2024-04-26` |
+| **Frequencies** | `Daily (D)` • `Weekly (W)` • `Monthly (M)` |
+| **Total Records** | `190,000+` historical data points |
 
 </div>
 
 ---
 
-## 🔍 Sistema de Scraping
+## 🔍 Scraping System
 
-### 🎯 Endpoint Principal: `/divisa/tableData/`
+### 🎯 Main Endpoint: `/divisa/tableData/`
 
 ```http
 GET /divisa/tableData/?divisas=EURUSD%3DX&period1=2024-01-01&period2=2024-06-01&frequency=1d
 ```
 
-### 🔄 Proceso de Scraping
+### 🔄 Scraping Process
 
-1. **🏗️ Construcción de URL** → Parámetros de fecha y frecuencia
-2. **🚀 Selenium Headless** → Navegación automatizada
-3. **📜 Scroll Dinámico** → Carga completa de datos
-4. **🧹 BeautifulSoup** → Parsing y extracción de HTML
-5. **📤 JSON Response** → Datos estructurados
+1. **🏗️ URL Construction** → Date and frequency parameters
+2. **🚀 Headless Selenium** → Automated navigation
+3. **📜 Dynamic Scrolling** → Complete data loading
+4. **🧹 BeautifulSoup** → HTML parsing and extraction
+5. **📤 JSON Response** → Structured data
 
-> ⚠️ **Nota:** El scraping depende de la estructura actual de Yahoo Finance
+> ⚠️ **Note:** Scraping depends on Yahoo Finance's current structure
 
 ---
 
 ## 📡 API Endpoints
 
-### 🔴 Datos en Tiempo Real
+### 🔴 Real-time Data
 ```http
 GET /divisa/currentData/?divisas=EURUSD
 ```
 
-### 📊 Datos Históricos (Scraping)
+### 📊 Historical Data (Scraping)
 ```http
 GET /divisa/tableData/?divisas=EURUSD%3DX&period1=2024-01-01&period2=2024-06-01&frequency=1d
 ```
 
-### 💾 Datos Almacenados
+### 💾 Stored Data
 ```http
 GET /divisa/dataprueba/?divisas=EURUSD&start_date=2023-01-01&end_date=2023-06-01&frequency=W
 ```
 
-### 👤 Gestión de Usuarios
+### 👤 User Management
 ```http
-POST /user/register/         # Registro
-POST /user/login/           # Autenticación
-GET  /user/getProfile/      # Perfil de usuario
-PUT  /user/updateProfileName/  # Actualizar nombre
-PUT  /user/changePassword/  # Cambiar contraseña
+POST /user/register/         # Registration
+POST /user/login/           # Authentication
+GET  /user/getProfile/      # User profile
+PUT  /user/updateProfileName/  # Update name
+PUT  /user/changePassword/  # Change password
 ```
 
-### 💱 Divisas de Usuario
+### 💱 User Currencies
 ```http
-GET  /divisa/obtenerDivisas/?user=2        # Obtener favoritas
-POST /divisa/insertarDivisaInformation/    # Agregar favorita
-DELETE /divisa/eliminarDivisas/            # Eliminar favorita
+GET  /divisa/obtenerDivisas/?user=2        # Get favorites
+POST /divisa/insertarDivisaInformation/    # Add favorite
+DELETE /divisa/eliminarDivisas/            # Remove favorite
 ```
 
 ---
 
-## 🛠️ Instalación Rápida
+## 🛠️ Quick Installation
 
-### 📋 Prerrequisitos
-- **Python** ≥ 3.9 (recomendado 3.11+)
-- **Google Chrome** instalado
-- **Git** para clonado
+### 📋 Prerequisites
+- **Python** ≥ 3.9 (recommended 3.11+)
+- **Google Chrome** installed
+- **Git** for cloning
 
-### 🚀 Setup en 5 pasos
+### 🚀 5-Step Setup
 
 ```bash
-# 1️⃣ Clonar repositorio
+# 1️⃣ Clone repository
 git clone https://github.com/Dionisio202/ForexRadar-backend.git
 cd ForexRadar-backend
 
-# 2️⃣ Crear entorno virtual
+# 2️⃣ Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
-# 3️⃣ Instalar dependencias
+# 3️⃣ Install dependencies
 pip install -r requirements.txt
 
-# 4️⃣ Configurar base de datos
+# 4️⃣ Configure database
 python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
 
-# 5️⃣ Ejecutar servidor
+# 5️⃣ Run server
 python manage.py runserver
 ```
 
-### 🎯 Acceso Rápido
+### 🎯 Quick Access
 - **API Base:** `http://127.0.0.1:8000/`
 - **Admin Panel:** `http://127.0.0.1:8000/admin/`
 - **API Docs:** `http://127.0.0.1:8000/api/docs/`
 
 ---
 
-## 🚧 Consideraciones Importantes
+## 🚧 Important Considerations
 
-### ⚠️ Limitaciones Técnicas
-- **Dependencia de Yahoo Finance:** Cambios en su estructura pueden afectar el scraping
-- **Rate Limiting:** Se recomienda uso controlado del scraping
-- **Chrome Driver:** Debe estar correctamente instalado
+### ⚠️ Technical Limitations
+- **Yahoo Finance Dependency:** Changes in their structure may affect scraping
+- **Rate Limiting:** Controlled use of scraping is recommended
+- **Chrome Driver:** Must be properly installed
 
-### 🔒 Seguridad
-- Autenticación JWT implementada
-- Validación de entrada en todos los endpoints
-- Protección CSRF activada
-
----
-
-## 🛣️ Roadmap Futuro
-
-### 🎯 Próximas Características
-
-- [ ] **🤖 Automatización con Celery** → Scraping periódico
-- [ ] **📊 Dashboard React Completo** → Gráficos candlestick interactivos
-- [ ] **🔔 Sistema de Alertas** → Notificaciones de precio
-- [ ] **🗃️ Data Warehouse** → Escalabilidad para producción
-- [ ] **📈 Más Fuentes de Datos** → Investing.com, APIs premium
-- [ ] **🐳 Docker Support** → Containerización completa
+### 🔒 Security
+- JWT authentication implemented
+- Input validation on all endpoints
+- CSRF protection enabled
 
 ---
 
-## 🤝 Contribución
+## 🛣️ Future Roadmap
 
-¿Quieres contribuir? ¡Genial! 
+### 🎯 Upcoming Features
 
-1. **Fork** el repositorio
-2. **Crea** una branch para tu feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** a la branch (`git push origin feature/AmazingFeature`)
-5. **Abre** un Pull Request
+- [ ] **🤖 Celery Automation** → Periodic scraping
+- [ ] **📊 Complete React Dashboard** → Interactive candlestick charts
+- [ ] **🔔 Alert System** → Price notifications
+- [ ] **🗃️ Data Warehouse** → Production scalability
+- [ ] **📈 More Data Sources** → Investing.com
+
 
 ---
 
+## 🤝 Contributing
 
+Want to contribute? Great! 
 
-## 🔗 Enlaces Relacionados
+1. **Fork** the repository
+2. **Create** a branch for your feature (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** to the branch (`git push origin feature/AmazingFeature`)
+5. **Open** a Pull Request
+
+---
+
+## 🔗 Related Links
 
 - 🎨 **Frontend Repository:** [ForexRadar-frontEnd](https://github.com/Dionisio202/ForexRadar-frontEnd)
 - 📚 **Django Documentation:** [docs.djangoproject.com](https://docs.djangoproject.com/)
@@ -311,8 +309,8 @@ python manage.py runserver
 
 <div align="center">
 
-**⭐ Si te gusta este proyecto, considera darle una estrella en GitHub ⭐**
+**⭐ If you like this project, consider giving it a star on GitHub ⭐**
 
-*Desarrollado con ❤️ por [Dionisio202](https://github.com/Dionisio202)*
+*Developed with ❤️ by [Dionisio202](https://github.com/Dionisio202)*
 
 </div>
